@@ -6,6 +6,7 @@ import (
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
 	"github.com/EngoEngine/engo/common"
+	"github.com/carise/go_invaders/systems"
 )
 
 type SpaceInvaderScene struct{}
@@ -19,33 +20,42 @@ type Battlefield struct {
 func (*SpaceInvaderScene) Type() string { return "space invaders" }
 
 func (*SpaceInvaderScene) Preload() {
-	engo.Files.Load("sprites/aliensprite.png")
+	engo.Files.Load("sprites/alien1.png", "sprites/small_turret.png")
+
+	engo.Input.RegisterButton("shoot", engo.KeySpace)
+	engo.Input.RegisterAxis("updown", engo.AxisKeyPair{Min: engo.KeyW, Max: engo.KeyS})
+	engo.Input.RegisterAxis("leftright", engo.AxisKeyPair{Min: engo.KeyA, Max: engo.KeyD})
 }
 
 func (*SpaceInvaderScene) Setup(u engo.Updater) {
+
 	world, _ := u.(*ecs.World)
 	world.AddSystem(&common.RenderSystem{})
-	battlefield := Battlefield{BasicEntity: ecs.NewBasic()}
-	battlefield.SpaceComponent = common.SpaceComponent{
-		Position: engo.Point{X: 10, Y: 10},
-		Width: 468,
-		Height: 39,
-	}
+	world.AddSystem(&systems.ControlSystem{})
+	world.AddSystem(&systems.AlienSystem{})
 
-	texture, err := common.LoadedSprite("sprites/aliensprite.png")
-	log.Println("Load sprites/aliensprite.png")
-	if err != nil {
-		log.Println("Unable to load texture: " + err.Error())
+	turret := systems.Turret{BasicEntity: ecs.NewBasic()}
+	turret.SpaceComponent = common.SpaceComponent{
+		Position: engo.Point{X: 200, Y: 350},
+		Width:    50,
+		Height:   50,
 	}
-	battlefield.RenderComponent = common.RenderComponent{
-		Drawable: texture,
-		Scale: engo.Point{X: 1, Y: 1},
+	turretTexture, err := common.LoadedSprite("sprites/small_turret.png")
+	log.Println("Load turret texture")
+	if err != nil {
+		log.Println("Unable to load turret texture")
+	}
+	turret.RenderComponent = common.RenderComponent{
+		Drawable: turretTexture,
+		Scale:    engo.Point{X: 1, Y: 1},
 	}
 
 	for _, system := range world.Systems() {
 		switch sys := system.(type) {
 		case *common.RenderSystem:
-			sys.Add(&battlefield.BasicEntity, &battlefield.RenderComponent, &battlefield.SpaceComponent)
+			sys.Add(&turret.BasicEntity, &turret.RenderComponent, &turret.SpaceComponent)
+		case *systems.ControlSystem:
+			sys.Add(&turret.BasicEntity, &turret.SpaceComponent)
 		}
 	}
 }
@@ -53,8 +63,8 @@ func (*SpaceInvaderScene) Setup(u engo.Updater) {
 func main() {
 	opts := engo.RunOptions{
 		Title:  "Space Invaders",
-		Width:  400,
-		Height: 400,
+		Width:  600,
+		Height: 600,
 	}
 	engo.Run(opts, &SpaceInvaderScene{})
 }
